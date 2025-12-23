@@ -26,7 +26,7 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY environment variable is not set")
 
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro')
+model = gen.GenerativeModel("models/gemini-2.5-flash")
 
 # Request/Response models
 class ChatRequest(BaseModel):
