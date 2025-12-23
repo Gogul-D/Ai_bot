@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import google.generativeai as genai
+import google.generativeai as gen
 import os
 from dotenv import load_dotenv
 
@@ -14,7 +14,7 @@ app = FastAPI(title="Mr.Cool AI", version="1.0.0")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify exact origins
+    allow_origins=["*"],  # Restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,9 +23,11 @@ app.add_middleware(
 # Configure Gemini AI
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY environment variable is not set")
+    raise RuntimeError("GEMINI_API_KEY environment variable is not set")
 
 genai.configure(api_key=GEMINI_API_KEY)
+
+# ✅ USE STABLE MODEL
 model = gen.GenerativeModel("models/gemini-2.5-flash")
 
 # Request/Response models
@@ -38,29 +40,30 @@ class ChatResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    """Health check endpoint"""
-    return {"message": "Mr.Cool AI API is running", "status": "healthy"}
+    return {
+        "message": "Mr.Cool AI API is running",
+        "status": "healthy"
+    }
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """
-    Chat endpoint that processes user prompts and returns AI responses
-    """
     try:
-        if not request.prompt or request.prompt.strip() == "":
+        if not request.prompt.strip():
             raise HTTPException(status_code=400, detail="Prompt cannot be empty")
-        
-        # Generate AI response
+
         response = model.generate_content(request.prompt)
-        
+
         if not response.text:
-            raise HTTPException(status_code=500, detail="AI did not generate a response")
-        
+            raise HTTPException(
+                status_code=500,
+                detail="AI did not generate a response"
+            )
+
         return ChatResponse(
             response=response.text,
             status="success"
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -68,7 +71,3 @@ async def chat(request: ChatRequest):
             status_code=500,
             detail=f"Error generating AI response: {str(e)}"
         )
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
